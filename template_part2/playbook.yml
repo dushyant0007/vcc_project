@@ -1,9 +1,8 @@
 ---
 # main playbook
-
 - hosts: storage
   gather_facts: no
-  become: true # to enable sudo
+  become: true
   roles:
     - network_facts
     - nfs_server

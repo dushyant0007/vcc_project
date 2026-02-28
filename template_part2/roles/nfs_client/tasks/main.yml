@@ -1,13 +1,9 @@
 ---
-# TODO: implement the tasks for NFS client setup. Make sure to use the storage network for NFS mount
-
-- name: Ensure mount directory exists
+- name: "Create NFS mount directory"
   ansible.builtin.file:
-    path: "{{ data }}"
+    path: "{{ data_dir }}"
     state: directory
-    owner: root
-    group: root
-    mode: "0777"
+    mode: "0755"
 
 - name: Install NFS client
   ansible.builtin.apt:
@@ -15,25 +11,22 @@
     state: present
     update_cache: true
 
-# Mount using the storage network IP so NFS traffic uses the storage network
 - name: Mount NFS share
-  ansible.builtin.mount:
-    path: "{{ data }}"
+  ansible.posix.mount:
+    path: "{{ data_dir }}"
     src: "storage.{{ domain_name }}:{{ nfs_dir }}"
     fstype: nfs
-    opts: "rw,sync,vers=4,clientaddr={{ storage_IP }}"
+    opts: defaults,_netdev
     state: mounted
 
 ## check mount
 - block:
-    - name: Get mount information
-      ansible.builtin.command: cat /proc/mounts
-      register: mounts_out
-      changed_when: false
-
-    - name: Assert NFS share mounted correctly
-      ansible.builtin.assert:
-        that:
-          - mounts_out.stdout is search('storage\.' ~ domain_name ~ ':' ~ nfs_dir)
-        fail_msg: "NFS share not mounted correctly at {{ data }}"
-  when: enable_asserts | bool
+  - name: Get mount information
+    ansible.builtin.command: cat /proc/mounts
+    register: mounts_out
+    changed_when: false
+  - ansible.builtin.assert:
+      that:
+        - mounts_out.stdout is search('storage\\.' ~ domain_name | regex_escape ~ ':' ~ nfs_dir | regex_escape ~ '.*' ~ data_dir | regex_escape ~ '.*clientaddr=' ~ storage_IP | regex_escape ~ '.*')
+      fail_msg: "NFS share not mounted correctly"
+  when: enable_asserts

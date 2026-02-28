@@ -19,11 +19,7 @@ docker_build_args:
     ARG_NAME: "value"
 
 # data directory: where persistent data is stored on each target node
-data_dir: "/data" # Directory exported by the NFS server
-data : "{{data_dir}}" # Directory mounted on client nodes
-
-# Directory exported on storage server
-nfs_dir: "/data"
+data_dir: "/data"
 
 #### COMPOSE #####
 

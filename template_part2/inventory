@@ -1,7 +1,7 @@
 controlnode.vcc.local ansible_connection=local
 
 [storage]
-controlnode.vcc.local 
+controlnode.vcc.local
 
 [targets]
 node[1:2].vcc.local

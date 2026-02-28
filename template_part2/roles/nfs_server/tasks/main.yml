@@ -1,13 +1,9 @@
 ---
-# Tasks for NFS server setup (runs on the storage host)
-
-- name: Create NFS share directory
+- name: "Create NFS share directory"
   ansible.builtin.file:
     path: "{{ nfs_dir }}"
     state: directory
-    owner: root
-    group: root
-    mode: "0777"
+    mode: "0755"
 
 - name: Install NFS server
   ansible.builtin.apt:
@@ -19,8 +15,6 @@
   ansible.builtin.template:
     src: exports
     dest: /etc/exports
-    owner: root
-    group: root
     mode: "0644"
   notify: Restart NFS server
 
@@ -32,17 +26,15 @@
 
 ## check exports
 - block:
-    - name: Apply notifiers
-      ansible.builtin.meta: flush_handlers
-
-    - name: Get verbose export list
-      ansible.builtin.command: exportfs -v
-      register: exportfs_verbose
-      changed_when: false
-
-    - name: Assert that the export exists with correct options
-      ansible.builtin.assert:
-        that:
-          - exportfs_verbose.stdout is search(nfs_dir | regex_escape ~ '\\s.*rw.*no_root_squash.*')
-        fail_msg: "Export for {{ nfs_dir }} is missing or has incorrect options"
-  when: enable_asserts | bool
+  - name: Apply notifiers
+    ansible.builtin.meta: flush_handlers
+  - name: Get verbose export list
+    ansible.builtin.command: exportfs -v
+    register: exportfs_verbose
+    changed_when: false
+  - name: Assert that the export exists with correct options
+    ansible.builtin.assert:
+      that:
+        - exportfs_verbose.stdout is search(storage_network | regex_escape ~ '\\s*\\(.*rw.*no_root_squash.*\\)')
+      fail_msg: "Export for {{ storage_network }} is missing or has incorrect options"
+  when: enable_asserts
