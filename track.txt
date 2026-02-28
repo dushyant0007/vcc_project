@@ -1,0 +1,45 @@
+-> install vargant
+
+-> mkdir vcc_project
+
+-> cd vcc_project
+
+-> vargant init // creates a vagrant file
+
+-> vagrant up // to make the machine running.
+
+# vagrant destroy (to delete)
+# vagrant suspend/resume (to shutdown/start)
+# vagrant reload (to make changes from the vagrant file)
+# vagrant ssh (to connect to the machine)
+
+# Generating ssh key ssh-keygen -t ed25519 -C "vcc-vm(key_name)"
+
+
+//---How vagrant file works -->
+
+config.vm.box - Operating System
+config.vm.provider - virtualbox
+config.vm.network - How you host sees your box
+config.vm.synced_folder - How you access files from you computer
+config.vm.provision - what we commands to run in vm
+
+//----- Vagrant Network Configurations
+
+1 > Port forwarding 
+    ex : config.vm.network 'forwarded_port', guest:80, host:8080;
+    maps port 80 of the VM to port 8080 on the host machine
+
+2 > Private network (host-only network)
+3 > Public network (bridged network)
+
+
+
+// ------- Ansible ---------
+
+inventory file : is the to put all the ips/domain names of the worker nodes
+
+command to play:
+    ansible-playbook -i inventory playbook.yml --limit storage
+
+     --limit storage :“Even if the playbook contains multiple plays, run it only on hosts that belong to storage
