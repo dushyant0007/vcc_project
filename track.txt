@@ -43,3 +43,15 @@ command to play:
     ansible-playbook -i inventory playbook.yml --limit storage
 
      --limit storage :“Even if the playbook contains multiple plays, run it only on hosts that belong to storage
+
+    -- make setup-all (for both part2 and part 3 setup)
+    -- make images
+
+    make deploy USEVAULT=1
+    vault password VCCsecret
+compose file : 
+    A compose file (docker-compose.yml, traefik-compose.yml, part3-compose.yml) defines how your containers should run.
+    which services/containers to start 
+    which image each service uses
+    environment variables
+    published ports

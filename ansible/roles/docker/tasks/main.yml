@@ -1,0 +1,83 @@
+---
+# tasks file for roles/docker
+
+# TODO: implement the tasks for Docker installation
+
+- name: Install Docker and Compose dependencies
+  ansible.builtin.apt:
+    name:
+      - docker.io
+      - docker-buildx-plugin
+      - docker-compose-v2
+      - python3-docker
+    state: present
+    update_cache: true
+
+- name: Ensure Docker daemon is started and enabled
+  ansible.builtin.service:
+    name: docker
+    state: started
+    enabled: true
+
+- name: Add remote user to docker group
+  ansible.builtin.user:
+    name: "{{ ansible_user | default('vagrant') }}"
+    groups: docker
+    append: true
+  # This enables non-root docker usage in subsequent SSH sessions.
+
+- name: Check if docker command exists
+  ansible.builtin.shell: "command -v docker"
+  register: docker_check
+  changed_when: false
+  failed_when: false
+
+- name: Assert docker is installed
+  ansible.builtin.assert:
+    that:
+      - docker_check.rc == 0
+    fail_msg: "Docker is not installed on this host."
+
+- name: Check docker compose plugin command
+  ansible.builtin.shell: "docker compose version"
+  register: docker_compose_check
+  changed_when: false
+  failed_when: false
+
+- name: Assert docker compose plugin is installed
+  ansible.builtin.assert:
+    that:
+      - docker_compose_check.rc == 0
+    fail_msg: "Docker Compose v2 plugin is not installed on this host."
+
+- name: Check current swarm node state
+  ansible.builtin.command: docker info --format '{{ "{{.Swarm.LocalNodeState}}" }}'
+  register: swarm_state
+  changed_when: false
+  failed_when: false
+  when: compose_deployment_mode == 'swarm'
+
+- name: Initialize swarm on the first target node (manager)
+  ansible.builtin.command: "docker swarm init --advertise-addr {{ workload_IP }}"
+  when:
+    - compose_deployment_mode == 'swarm'
+    - inventory_hostname == groups['targets'][0]
+    - swarm_state.stdout != "active"
+
+- name: Get worker join token from manager
+  ansible.builtin.command: docker swarm join-token -q worker
+  register: swarm_worker_token
+  changed_when: false
+  delegate_to: "{{ groups['targets'][0] }}"
+  run_once: true
+  when: compose_deployment_mode == 'swarm'
+
+- name: Join worker nodes to swarm
+  ansible.builtin.command: >-
+    docker swarm join
+    --token {{ swarm_worker_token.stdout }}
+    {{ hostvars[groups['targets'][0]].workload_IP }}:2377
+  when:
+    - compose_deployment_mode == 'swarm'
+    - inventory_hostname != groups['targets'][0]
+    - swarm_state.stdout != "active"

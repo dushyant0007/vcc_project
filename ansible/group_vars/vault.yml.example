@@ -1,0 +1,21 @@
+---
+# Copy this file to group_vars/vault.yml and encrypt it with:
+# ansible-vault encrypt group_vars/vault.yml
+
+# Database secrets
+db_password: "CHANGE_ME_db_password"
+authelia_db_password: "CHANGE_ME_authelia_db_password"
+
+# Forgejo/Authelia secrets
+forgejo_admin_password: "CHANGE_ME_forgejo_admin_password"
+forgejo_oidc_client_secret: "CHANGE_ME_forgejo_oidc_client_secret"
+authelia_admin_password_hash: "CHANGE_ME_authelia_admin_bcrypt_hash"
+authelia_user1_password_hash: "CHANGE_ME_authelia_user1_bcrypt_hash"
+authelia_oidc_private_key: |
+  -----BEGIN PRIVATE KEY-----
+  CHANGE_ME
+  -----END PRIVATE KEY-----
+
+# Monitoring secrets
+grafana_admin_password: "CHANGE_ME_grafana_admin_password"
+grafana_oidc_client_secret: "CHANGE_ME_grafana_oidc_client_secret"

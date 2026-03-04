@@ -1,0 +1,19 @@
+#!/bin/bash
+set -e
+
+# TODO: create the database and the user for Authelia
+# This init script runs only on first Postgres bootstrap.
+psql -v ON_ERROR_STOP=1 --username "${POSTGRES_USER}" --dbname "${POSTGRES_DB}" <<-EOSQL
+DO \$\$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '${AUTHELIA_DB_USER}') THEN
+    CREATE ROLE ${AUTHELIA_DB_USER} LOGIN PASSWORD '${AUTHELIA_DB_PASSWORD}';
+  END IF;
+END
+\$\$;
+
+SELECT 'CREATE DATABASE ${AUTHELIA_DB}'
+WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '${AUTHELIA_DB}')\gexec
+
+GRANT ALL PRIVILEGES ON DATABASE ${AUTHELIA_DB} TO ${AUTHELIA_DB_USER};
+EOSQL

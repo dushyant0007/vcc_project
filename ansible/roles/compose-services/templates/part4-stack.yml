@@ -1,0 +1,144 @@
+version: "3.9"
+
+services:
+  traefik:
+    image: traefik:v2.11
+    command:
+      - "--api.insecure={{ 'false' if production_mode else 'true' }}"
+      - "--providers.docker=true"
+      - "--providers.docker.swarmMode=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--providers.file.filename=/etc/traefik/dynamic.yml"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--log.level=INFO"
+      - "--accesslog=true"
+    ports:
+      - "80:80"
+      - "443:443"
+      {{ '- "8080:8080"' if not production_mode else '' }}
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "{{ data_dir }}/certs:/certs:ro"
+      - "{{ data_dir }}/configs/traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro"
+    networks:
+      - net
+    deploy:
+      placement:
+        constraints:
+          - node.role == manager
+
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: "{{ db_user }}"
+      POSTGRES_PASSWORD: "{{ db_password }}"
+      POSTGRES_DB: "{{ db_name }}"
+      AUTHELIA_DB_USER: "{{ authelia_db_user }}"
+      AUTHELIA_DB_PASSWORD: "{{ authelia_db_password }}"
+      AUTHELIA_DB: "{{ authelia_db }}"
+    volumes:
+      - "{{ data_dir }}/pgdata:/var/lib/postgresql/data"
+      - "{{ data_dir }}/configs/pgsql/01-authelia.sh:/docker-entrypoint-initdb.d/01-authelia.sh:ro"
+    networks:
+      - net
+    deploy:
+      placement:
+        constraints:
+          - node.role == manager
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    networks:
+      - net
+    deploy:
+      replicas: 1
+
+  authelia:
+    image: authelia
+    environment:
+      TZ: "UTC"
+    volumes:
+      - "{{ data_dir }}/configs/authelia:/config"
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+    networks:
+      - net
+    deploy:
+      # Replicas are Swarm task copies; this enables horizontal scaling.
+      replicas: 2
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.authelia.rule=Host(`auth.{{ domain_name }}`)"
+        - "traefik.http.routers.authelia.entrypoints=websecure"
+        - "traefik.http.routers.authelia.tls=true"
+        - "traefik.http.services.authelia.loadbalancer.server.port=9091"
+
+  forgejo:
+    image: forgejo
+    environment:
+      POSTGRES_HOST: "db"
+      POSTGRES_PORT: "5432"
+      POSTGRES_USER: "{{ db_user }}"
+      POSTGRES_PASSWORD: "{{ db_password }}"
+      POSTGRES_DB: "{{ db_name }}"
+      FORGEJO_ADMIN_USERNAME: "{{ forgejo_admin_username }}"
+      FORGEJO_ADMIN_PASSWORD: "{{ forgejo_admin_password }}"
+      FORGEJO_ADMIN_EMAIL: "{{ forgejo_admin_email }}"
+      FORGEJO_OIDC_URL: "{{ forgejo_oidc_url }}"
+      FORGEJO_OIDC_CLIENT_ID: "{{ forgejo_oidc_client_id }}"
+      FORGEJO_OIDC_CLIENT_SECRET: "{{ forgejo_oidc_client_secret }}"
+    volumes:
+      - "{{ data_dir }}/forgejo:/data"
+      - "{{ data_dir }}/configs/forgejo/forgejo.ini:/conf/app.ini:ro"
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+      - "{{ data_dir }}/certs/wildcard.crt:/usr/local/share/ca-certificates/wildcard.crt:ro"
+    extra_hosts:
+      - "auth.{{ domain_name }}:{{ workload_IP }}"
+    networks:
+      - net
+    deploy:
+      replicas: 2
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.forgejo.rule=Host(`git.{{ domain_name }}`)"
+        - "traefik.http.routers.forgejo.entrypoints=websecure"
+        - "traefik.http.routers.forgejo.tls=true"
+        - "traefik.http.services.forgejo.loadbalancer.server.port=3200"
+
+  grafana:
+    image: grafana/grafana:11.1.0
+    environment:
+      GF_SERVER_ROOT_URL: "{{ grafana_url }}"
+      GF_SERVER_DOMAIN: "mon.{{ domain_name }}"
+      GF_SECURITY_ADMIN_USER: "{{ grafana_admin_user }}"
+      GF_SECURITY_ADMIN_PASSWORD: "{{ grafana_admin_password }}"
+      # Generic OAuth lets Grafana delegate login to Authelia OIDC.
+      GF_AUTH_GENERIC_OAUTH_ENABLED: "true"
+      GF_AUTH_GENERIC_OAUTH_NAME: "Authelia"
+      GF_AUTH_GENERIC_OAUTH_CLIENT_ID: "{{ grafana_oidc_client_id }}"
+      GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET: "{{ grafana_oidc_client_secret }}"
+      GF_AUTH_GENERIC_OAUTH_SCOPES: "openid profile email"
+      GF_AUTH_GENERIC_OAUTH_AUTH_URL: "https://auth.{{ domain_name }}/api/oidc/authorization"
+      GF_AUTH_GENERIC_OAUTH_TOKEN_URL: "https://auth.{{ domain_name }}/api/oidc/token"
+      GF_AUTH_GENERIC_OAUTH_API_URL: "https://auth.{{ domain_name }}/api/oidc/userinfo"
+      GF_AUTH_SIGNOUT_REDIRECT_URL: "https://auth.{{ domain_name }}/logout"
+    extra_hosts:
+      - "auth.{{ domain_name }}:{{ workload_IP }}"
+    networks:
+      - net
+    deploy:
+      replicas: 2
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.grafana.rule=Host(`mon.{{ domain_name }}`)"
+        - "traefik.http.routers.grafana.entrypoints=websecure"
+        - "traefik.http.routers.grafana.tls=true"
+        - "traefik.http.services.grafana.loadbalancer.server.port=3000"
+
+networks:
+  net:
+    driver: overlay
+    attachable: true

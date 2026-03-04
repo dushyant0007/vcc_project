@@ -1,0 +1,11 @@
+---
+compose_data_directories:
+compose_nuke_data_directories: true # you WILL lose your data
+
+compose_file_names:
+  - docker-compose.yml
+compose_recreate: true
+
+# compose (docker compose v2) or swarm (docker stack deploy)
+compose_deployment_mode: compose
+compose_stack_file_names: []
