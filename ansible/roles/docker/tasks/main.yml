@@ -7,11 +7,22 @@
   ansible.builtin.apt:
     name:
       - docker.io
-      - docker-buildx-plugin
       - docker-compose-v2
       - python3-docker
     state: present
     update_cache: true
+
+- name: Try to install buildx plugin when available
+  ansible.builtin.apt:
+    name: docker-buildx-plugin
+    state: present
+  register: buildx_install
+  failed_when: false
+
+- name: Warn when buildx plugin package is unavailable
+  ansible.builtin.debug:
+    msg: "Package docker-buildx-plugin is not available on this distro; continuing without it."
+  when: "'No package matching' in (buildx_install.msg | default(''))"
 
 - name: Ensure Docker daemon is started and enabled
   ansible.builtin.service:

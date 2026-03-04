@@ -11,7 +11,7 @@ endef
 #
 
 # Path to the Python virtual environment
-VENV_PATH ?= /home/vagrant/.venv
+VENV_PATH ?= .venv
 
 # Ansible log path
 ANSIBLE_LOG_PATH ?= log/ansible.log

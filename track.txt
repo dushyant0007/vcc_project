@@ -49,6 +49,9 @@ command to play:
 
     make deploy USEVAULT=1
     vault password VCCsecret
+
+    
+
 compose file : 
     A compose file (docker-compose.yml, traefik-compose.yml, part3-compose.yml) defines how your containers should run.
     which services/containers to start 
