@@ -28,7 +28,7 @@ data_dir: "/data"
 compose_data_directories:
   - pgdata
   - forgejo
-compose_nuke_data_directories: true # you WILL lose your data
+compose_nuke_data_directories: false # keep persistent data by default
 
 # List of directories to copy files from roles/compose-services/templates/configs/[config_directory]
 # to {{ data_dir }}/configs/[config_directory] applying templating
@@ -37,7 +37,7 @@ compose_config_directories:
   - pgsql
   - authelia
   - forgejo
-compose_nuke_config_directories: true # you WILL lose your data
+compose_nuke_config_directories: false # keep rendered configs by default
 
 # List of files to deploy the compose from roles/compose-services/templates/
 compose_file_names:

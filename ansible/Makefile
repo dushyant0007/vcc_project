@@ -19,7 +19,8 @@ ANSIBLE_LOG_PATH ?= log/ansible.log
 # Name of the inventory file
 INVENTORY ?= inventory
 
-USEVAULT ?= 0
+VAULT_FILE ?= group_vars/vault.yml
+USEVAULT ?= 1
 
 ifeq ($(USEVAULT),1)
 VAULT_OPT := --ask-vault-pass
@@ -56,39 +57,36 @@ ping: .venv
 #
 
 .PHONY: setup-all
-setup-all: .venv
+setup-all: .venv check-vault
 	$(RUN_ANSIBLE)
 
+.PHONY: check-vault
+check-vault:
+	@if [ "$(USEVAULT)" = "1" ] && [ ! -f "$(VAULT_FILE)" ]; then \
+		echo "Missing $(VAULT_FILE). Create it from group_vars/vault.yml.example and encrypt it."; \
+		exit 1; \
+	fi
+	@if [ "$(USEVAULT)" = "1" ] && [ -f "$(VAULT_FILE)" ] && ! head -n 1 "$(VAULT_FILE)" | grep -q '^\$$ANSIBLE_VAULT;'; then \
+		echo "$(VAULT_FILE) must be encrypted with ansible-vault."; \
+		exit 1; \
+	fi
+
 .PHONY: registry
-registry: .venv
+registry: .venv check-vault
 	$(eval ARGS := --tags "registry" -v)
 	$(RUN_ANSIBLE)
 
 .PHONY: images
-images: .venv
+images: .venv check-vault
 	$(eval ARGS := --tags "images" -v)
 	$(RUN_ANSIBLE)
 
 .PHONY: services
-services: .venv
+services: .venv check-vault
 	$(eval ARGS := --tags "services" -v)
 	$(RUN_ANSIBLE)
 
 .PHONY: deploy
-deploy: .venv
+deploy: .venv check-vault
 	$(eval ARGS := --tags "deploy" -v)
 	$(RUN_ANSIBLE)
-
-# ifeq ($(USEVAULT),1)
-# 	( \
-# 		export ANSIBLE_LOG_PATH=$(ANSIBLE_LOG_PATH); \
-# 		. $(VENV_PATH)/bin/activate; \
-# 		ansible-playbook -i $(INVENTORY) --ask-vault-pass -v playbook.yml \
-# 	)
-# else
-# 	( \
-# 		export ANSIBLE_LOG_PATH=$(ANSIBLE_LOG_PATH); \
-# 		. $(VENV_PATH)/bin/activate; \
-# 		ansible-playbook -i $(INVENTORY) -v playbook.yml \
-# 	)
-# endif

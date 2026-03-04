@@ -11,7 +11,7 @@ authentication_backend:
     path: /config/users.yml
 
 session:
-  secret: "{{ lookup('password', '/dev/null', length=64) }}"
+  secret: "{{ authelia_session_secret }}"
   cookies:
     - name: authelia_session
       domain: {{ domain_name }}
@@ -38,7 +38,6 @@ identity_providers:
         key: |
 {{ authelia_oidc_private_key | indent(10, true) }}
     clients:
-# TODO: generate all OIDC clients using authelia_oidc_clients variable
 {% for c in authelia_oidc_clients %}
       - id: "{{ c.id }}"
         description: "{{ c.id }} oidc client"
@@ -57,17 +56,15 @@ identity_providers:
 {% endfor %}
 
 storage:
-  # local: 
-  #   path: /config/db.sqlite3
   postgres:
     # tcp://db:5432 points to the Postgres service inside the compose network.
-    address: 'tcp://db:5432' # TODO: add the Postgres service hostname and port
+    address: 'tcp://db:5432'
     database: {{ authelia_db }}
     schema: public
     username: {{ authelia_db_user }}
     password: {{ authelia_db_password }}
     timeout: 5s
-  encryption_key: "{{ lookup('password', '/dev/null', length=64) }}"
+  encryption_key: "{{ authelia_encryption_key }}"
 
 notifier:
   disable_startup_check: true

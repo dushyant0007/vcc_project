@@ -1,15 +1,47 @@
 ---
-- name: Copy docker-compose files to remote host
+- name: Select compose files to deploy
+  ansible.builtin.set_fact:
+    compose_files_to_deploy: "{{ compose_stack_file_names if compose_deployment_mode == 'swarm' else compose_file_names }}"
+    compose_stack_paths: "{{ compose_stack_file_names | map('regex_replace', '^(.*)$', '/opt/\\1') | list }}"
+
+- name: Require vault-provided secrets
+  vars:
+    required_secrets_common:
+      - db_password
+      - authelia_db_password
+      - forgejo_admin_password
+      - forgejo_oidc_client_secret
+      - forgejo_lfs_jwt_secret
+      - forgejo_secret_key
+      - forgejo_internal_token
+      - authelia_session_secret
+      - authelia_encryption_key
+      - authelia_admin_password_hash
+      - authelia_user1_password_hash
+      - authelia_oidc_private_key
+    required_secrets_swarm:
+      - grafana_admin_password
+      - grafana_oidc_client_secret
+    required_secrets: "{{ required_secrets_common + (required_secrets_swarm if compose_deployment_mode == 'swarm' else []) }}"
+  ansible.builtin.assert:
+    that:
+      - vars[item] is defined
+      - (vars[item] | string | trim) != ""
+      - not ((vars[item] | string) is match('^CHANGE_ME'))
+    fail_msg: "Missing secret '{{ item }}'. Define it in encrypted group_vars/vault.yml and run with USEVAULT=1."
+  loop: "{{ required_secrets }}"
+
+- name: Copy compose files to remote host
   ansible.builtin.template:
     src: "{{ item }}"
     dest: "/opt/{{ item }}"
-  loop: "{{ compose_stack_file_names if compose_deployment_mode == 'swarm' else compose_file_names }}"
+  loop: "{{ compose_files_to_deploy }}"
 
 - name: Undeploy compose
   community.docker.docker_compose_v2:
     project_name: vcc
     project_src: /opt/
-    files: "{{ compose_file_names }}"
+    files: "{{ compose_files_to_deploy }}"
     remove_volumes: true
     state: absent
   when:
@@ -25,11 +57,11 @@
     - compose_recreate
     - inventory_hostname == groups['targets'][0]
 
-- name: Delete directories in {{ data_dir}}
+- name: Delete directories in {{ data_dir }}
   ansible.builtin.file:
-    path: "{{ data_dir}}/{{ item }}"
+    path: "{{ data_dir }}/{{ item }}"
     state: absent
-  loop: "{{ compose_data_directories + ['configs' if compose_nuke_config_directories else ''] }}"
+  loop: "{{ compose_data_directories + (['configs'] if compose_nuke_config_directories else []) }}"
   when: compose_nuke_data_directories
 
 - name: Create data directories in {{ data_dir }}
@@ -38,39 +70,28 @@
     state: directory
   loop: "{{ compose_data_directories }}"
 
-# template files for services configuration
-
 - name: Create config directories in {{ data_dir }}/configs
   ansible.builtin.file:
     path: "{{ data_dir }}/configs/{{ item }}"
     state: directory
-    mode: '0755'
+    mode: "0755"
   loop: "{{ compose_config_directories }}"
 
 - name: Find template files in compose config directories
-  local_action:
-    module: ansible.builtin.stat
-    path: "{{ role_path }}/templates/configs/{{ item }}"
-  loop: "{{ compose_config_directories }}"
-  register: cfg_templates_dir_stats
-
-- name: Build list of existing local template dirs
-  ansible.builtin.set_fact:
-    cfg_existing_dirs: "{{ cfg_templates_dir_stats.results | selectattr('stat.exists', 'defined') | selectattr('stat.exists') | map(attribute='item') | list }}"
-
-- name: Find template files in compose config directories (only where present)
-  local_action:
-    module: ansible.builtin.find
+  ansible.builtin.find:
     paths: "{{ role_path }}/templates/configs/{{ item }}"
     file_type: file
     recurse: true
-  loop: "{{ cfg_existing_dirs }}"
+  loop: "{{ compose_config_directories }}"
   register: template_files_raw
-  when: cfg_existing_dirs | length > 0
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  failed_when: false
 
 - name: Flatten template file list
-  set_fact:
-    template_files: "{{ (template_files_raw.results | default([])) | map(attribute='files') | list | flatten }}"
+  ansible.builtin.set_fact:
+    template_files: "{{ template_files_raw.results | default([]) | selectattr('files', 'defined') | map(attribute='files') | list | flatten }}"
 
 - name: Template configuration files
   ansible.builtin.template:
@@ -80,15 +101,12 @@
   loop_control:
     label: "{{ item.path }}"
 
-# start services
-
 - name: Create and start services
   community.docker.docker_compose_v2:
     project_name: vcc
     project_src: /opt/
-    files: "{{ compose_file_names }}"
+    files: "{{ compose_files_to_deploy }}"
     state: present
-  # retry the task that may fail
   retries: 3
   delay: 1
   register: result
@@ -98,10 +116,8 @@
 - name: Deploy stack services (swarm mode)
   community.docker.docker_stack:
     name: vcc
-    compose:
-      - "/opt/{{ item }}"
+    compose: "{{ compose_stack_paths }}"
     state: present
-  loop: "{{ compose_stack_file_names }}"
   when:
     - compose_deployment_mode == 'swarm'
     - inventory_hostname == groups['targets'][0]

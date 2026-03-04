@@ -1,6 +1,4 @@
 ---
-# TODO: implement the tasks for NFS server setup
-
 - name: "Create NFS share directory"
   ansible.builtin.file:
     path: "{{ nfs_dir }}"

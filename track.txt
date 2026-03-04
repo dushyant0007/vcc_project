@@ -49,8 +49,15 @@ command to play:
 
     make deploy USEVAULT=1
     vault password VCCsecret
+    ---
+    temporary:
+    make USEVAULT=0 setup-all
+    ----
+    to set password : ansible-vault encrypt group_vars/vault.yml
 
-    
+
+
+
 
 compose file : 
     A compose file (docker-compose.yml, traefik-compose.yml, part3-compose.yml) defines how your containers should run.

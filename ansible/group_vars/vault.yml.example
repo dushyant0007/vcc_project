@@ -9,6 +9,11 @@ authelia_db_password: "CHANGE_ME_authelia_db_password"
 # Forgejo/Authelia secrets
 forgejo_admin_password: "CHANGE_ME_forgejo_admin_password"
 forgejo_oidc_client_secret: "CHANGE_ME_forgejo_oidc_client_secret"
+forgejo_lfs_jwt_secret: "CHANGE_ME_forgejo_lfs_jwt_secret"
+forgejo_secret_key: "CHANGE_ME_forgejo_secret_key"
+forgejo_internal_token: "CHANGE_ME_forgejo_internal_token"
+authelia_session_secret: "CHANGE_ME_authelia_session_secret"
+authelia_encryption_key: "CHANGE_ME_authelia_encryption_key"
 authelia_admin_password_hash: "CHANGE_ME_authelia_admin_bcrypt_hash"
 authelia_user1_password_hash: "CHANGE_ME_authelia_user1_bcrypt_hash"
 authelia_oidc_private_key: |

@@ -1,12 +1,10 @@
 ---
-# TODO: implement the tasks for NFS client setup. Make sure to use the storage network for NFS mount
-
 - name: Resolve data mount directory variable
   ansible.builtin.set_fact:
     nfs_mount_dir: "{{ data | default(data_dir) }}"
   # The assignment text mentions "data"; this keeps compatibility with data_dir in the template.
 
-- name: "Create NFS share directory"
+- name: Create NFS mount directory
   ansible.builtin.file:
     path: "{{ nfs_mount_dir }}"
     state: directory
@@ -19,7 +17,6 @@
     update_cache: true
 
 - name: Mount NFS share
-# use storage network for NFS mount
   ansible.posix.mount:
     path: "{{ nfs_mount_dir }}"
     src: "storage.{{ domain_name }}:{{ nfs_dir }}"

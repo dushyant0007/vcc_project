@@ -1,28 +1,25 @@
 ---
 # tasks file for roles/docker
 
-# TODO: implement the tasks for Docker installation
-
 - name: Install Docker and Compose dependencies
   ansible.builtin.apt:
     name:
       - docker.io
-      - docker-compose-v2
       - python3-docker
     state: present
     update_cache: true
 
-- name: Try to install buildx plugin when available
-  ansible.builtin.apt:
-    name: docker-buildx-plugin
-    state: present
-  register: buildx_install
-  failed_when: false
-
-- name: Warn when buildx plugin package is unavailable
-  ansible.builtin.debug:
-    msg: "Package docker-buildx-plugin is not available on this distro; continuing without it."
-  when: "'No package matching' in (buildx_install.msg | default(''))"
+- name: Install Docker Compose plugin (preferred package name)
+  block:
+    - name: Install docker-compose-v2
+      ansible.builtin.apt:
+        name: docker-compose-v2
+        state: present
+  rescue:
+    - name: Fallback to docker-compose-plugin when docker-compose-v2 is unavailable
+      ansible.builtin.apt:
+        name: docker-compose-plugin
+        state: present
 
 - name: Ensure Docker daemon is started and enabled
   ansible.builtin.service:
@@ -38,7 +35,7 @@
   # This enables non-root docker usage in subsequent SSH sessions.
 
 - name: Check if docker command exists
-  ansible.builtin.shell: "command -v docker"
+  ansible.builtin.command: docker --version
   register: docker_check
   changed_when: false
   failed_when: false
@@ -50,7 +47,7 @@
     fail_msg: "Docker is not installed on this host."
 
 - name: Check docker compose plugin command
-  ansible.builtin.shell: "docker compose version"
+  ansible.builtin.command: docker compose version
   register: docker_compose_check
   changed_when: false
   failed_when: false

@@ -1,7 +1,6 @@
 #!/bin/bash
 set -e
 
-# TODO: create the database and the user for Authelia
 # This init script runs only on first Postgres bootstrap.
 psql -v ON_ERROR_STOP=1 --username "${POSTGRES_USER}" --dbname "${POSTGRES_DB}" <<-EOSQL
 DO \$\$

@@ -12,12 +12,14 @@
     delete: true
 
 - name: Build container images
-  community.docker.docker_image_build:
+  community.docker.docker_image:
     name: "{{ (registry_address + '/' if use_private_registry else '') + item }}"
     tag: latest
-    path: "/opt/container-images/{{ item }}"
-    args: "{{ docker_build_args[item] | default({}) }}"
-    rebuild: always
+    source: build
+    build:
+      path: "/opt/container-images/{{ item }}"
+      args: "{{ docker_build_args[item] | default({}) }}"
+    force_source: true
   loop: "{{ docker_build_images }}"
   # retry the task that may fail
   retries: 3
