@@ -48,13 +48,12 @@ command to play:
     -- make images
 
     make deploy USEVAULT=1
-    vault password VCCsecret
+    vault password example: VCCsecret
     ---
     temporary:
     make USEVAULT=0 setup-all
     ----
     to set password : ansible-vault encrypt group_vars/vault.yml
-
 
 
 

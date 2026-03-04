@@ -2,6 +2,8 @@
 - hosts: storage
   gather_facts: no
   become: true
+  vars_files:
+    - group_vars/vault.yml
   roles:
     - network_facts
     - nfs_server
@@ -9,6 +11,8 @@
 - hosts: targets
   gather_facts: no
   become: true
+  vars_files:
+    - group_vars/vault.yml
   roles:
     - certs
     - { role: network_facts, tags: ['services', 'deploy'] }
